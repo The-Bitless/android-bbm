@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface-900: #12151a;
+  --surface-800: #1a1d24;
+  --surface-950: #0c0e12;
+  --border-muted: #2d323b;
+  --accent-cyan: #22d3ee;
+  --accent-emerald: #34d399;
+  --accent-amber: #fbbf24;
+  --text-muted: #94a3b8;
+  --text-disabled: #475569;
+}
+
+body {
+  @apply bg-surface-950 text-slate-200 antialiased;
+  background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgb(34 211 238 / 0.06), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 50%, rgb(34 211 238 / 0.03), transparent);
+}
+
+/* Subtle focus for accessibility */
+*:focus-visible {
+  @apply outline outline-2 outline-offset-2 outline-accent-cyan/50;
+}
+
+/* Card elevation (shared) */
+.card {
+  @apply rounded-xl border border-border-muted/80 bg-surface-800/90 shadow-card;
+}
+
+/* Disabled section styling */
+.section-disabled {
+  @apply border-border-subtle bg-surface-900/50 opacity-75;
+}
+
+.section-active {
+  @apply border-l-2 border-l-accent-cyan/30 bg-surface-800/60;
+}

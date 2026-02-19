@@ -1,0 +1,166 @@
+{
+  "metodologia": "Android Bug Bounty Methodology",
+  "version": "2.0",
+  "descripcion": "Modular methodology for APK assessment. Information extraction and analysis of the application blueprint, dynamic behaviour, and component exploitation.",
+  "modulos": [
+    {
+      "id": "MSD",
+      "nombre": "Module 1: Manifest analysis (MSD)",
+      "descripcion": "Information extraction and analysis of the application's blueprint without executing the code.",
+      "secciones": [
+        {
+          "id": "MSD-1.2",
+          "titulo": "Security directive analysis (global flags)",
+          "descripcion": "Configurations in AndroidManifest.xml that affect the application's global behavior and may expand its attack surface.",
+          "subsecciones": [
+            {"id": "MSD-1.2.1", "titulo": "Debugging in a production environment", "descripcion": "Determine if the application allows a debugger to be connected in production via the android:debuggable flag, which could facilitate memory extraction, manipulation of the execution flow, or bypassing client-side controls.", "triggers": ["android:debuggable"], "pasos": []},
+            {"id": "MSD-1.2.2", "titulo": "Exposure through backups", "descripcion": "Identify if the application allows backups to be made via the android:allowBackup flag and analyze, using backup_rules.xml, if sensitive data such as databases, tokens, or preferences could be extracted without elevated privileges.", "triggers": ["allowBackup=\"true\"", "backup_rules.xml"], "pasos": []},
+            {"id": "MSD-1.2.3", "titulo": "Cleartext communications and network security configuration", "descripcion": "Evaluate if the application permits unencrypted HTTP traffic by using android:usesCleartextTraffic or permissive configurations in network_security_config.xml, which could enable traffic interception, request manipulation, or exposure of sensitive information in transit.", "triggers": ["android:usesCleartextTraffic", "network_security_config"], "pasos": []},
+            {"id": "MSD-1.2.4", "titulo": "Sandbox isolation and identity sharing", "descripcion": "Verify if the application uses the android:sharedUserId attribute, which would allow it to share the same UID with other applications and potentially access internal storage or protected resources, weakening Android's sandbox isolation.", "triggers": ["android:sharedUserId"], "pasos": []},
+            {"id": "MSD-1.2.5", "titulo": "Task management and interface hijacking risk", "descripcion": "Analyze the configuration of taskAffinity, launchMode, and allowTaskReparenting to determine if the task architecture permits Task Hijacking attacks, including interface overlay, internal phishing, or manipulation of the navigation flow between applications.", "triggers": ["taskAffinity", "launchMode", "allowTaskReparenting"], "pasos": []}
+          ]
+        },
+        {
+          "id": "MSD-1.3",
+          "titulo": "Component exposure surface",
+          "descripcion": "Identification of Android system entry points that can be invoked by other applications or by the operating system itself.",
+          "subsecciones": [
+            {"id": "MSD-1.3.1", "titulo": "Enumeration of exported components", "descripcion": "Identify Activities, Services, Broadcast Receivers, and Content Providers accessible from other applications via the attribute android:exported=\"true\" or the presence of Intent Filters without explicit protection, assessing the possibility of invoking internal functionalities without the expected controls.", "triggers": ["android:exported=\"true\"", "intent-filter", "<activity", "<service", "<receiver", "<provider"], "pasos": []},
+            {"id": "MSD-1.3.2", "titulo": "Exposure through intent filters", "descripcion": "Map the Intent Filters defined in the Manifest, including custom schemes, App Links, and declared MIME types, in order to detect sensitive functionalities that can be activated externally through Intents or manipulated links.", "triggers": ["intent-filter", "android:scheme", "android:host", "<data", "android:mimeType"], "pasos": []},
+            {"id": "MSD-1.3.3", "titulo": "Review of custom permissions and protection level", "descripcion": "Identify the custom permissions defined by the application and analyze their protectionLevel to determine if they adequately protect exposed components or if they could be abused by external applications through incorrect configuration or repackaging.", "triggers": ["<uses-permission", "protectionLevel", "android:permission"], "pasos": []}
+          ]
+        },
+        {
+          "id": "MSD-1.4",
+          "titulo": "Secret leakage and hardcoding (discovery)",
+          "descripcion": "Identification of sensitive information hardcoded in the binary that could facilitate unauthorized access to internal resources or infrastructure associated with the application.",
+          "subsecciones": [
+            {"id": "MSD-1.4.1", "titulo": "Hardcoded secrets", "descripcion": "Detect the presence of hardcoded secrets in the source code, strings.xml, or resources included in the APK, such as API Keys (Google Maps, AWS), Firebase tokens, database credentials, or static cryptographic keys, evaluating whether they can be reused to access external services or privileged resources.", "triggers": ["strings.xml", "/assets"], "pasos": [], "alwaysInScope": true},
+            {"id": "MSD-1.4.2", "titulo": "Endpoints and environments", "descripcion": "Identify URLs for staging or development environments, internal APIs, or hidden administrative panels defined in code constants or configuration files (e.g., JSON in /assets), in order to discover additional attack surfaces not exposed in visible production.", "triggers": ["/assets", "BuildConfig"], "pasos": [], "alwaysInScope": true},
+            {"id": "MSD-1.4.3", "titulo": "BuildConfig analysis", "descripcion": "Analyze variables defined in BuildConfig or other compilation configurations to detect debugging flags, log activation, feature toggles, or environment-differentiated behaviors that could alter security controls or expose functionalities not intended for end-users.", "triggers": ["BuildConfig"], "pasos": [], "alwaysInScope": true}
+          ]
+        },
+        {
+          "id": "MSD-1.5",
+          "titulo": "Resource and asset analysis",
+          "descripcion": "Review of non-compiled files included in the APK that may contain sensitive information, internal configurations, or business logic accessible directly.",
+          "subsecciones": [
+            {"id": "MSD-1.5.1", "titulo": "Inspection of /assets", "descripcion": "Examine the content of the /assets directory to identify configuration files, certificates (.crt, .pem), public keys, database initialization scripts, or other resources that could reveal infrastructure details, facilitate traffic interception, or expose sensitive information reusable in subsequent attacks.", "triggers": ["/assets"], "pasos": []},
+            {"id": "MSD-1.5.2", "titulo": "Inspection of /res/raw", "descripcion": "Analyze files included in /res/raw, including binaries, preconfigured databases, or multimedia files, in order to detect sensitive information, internal data structures, or business logic accessible without dynamic execution.", "triggers": ["/res/raw"], "pasos": []}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DFA",
+      "nombre": "Module 2: Dynamic functional analysis (DFA)",
+      "descripcion": "Evaluation of the application's actual behavior during execution, focusing on its interaction with the backend and the identification of weaknesses in authentication, authorization, and business logic mechanisms implemented on the server.",
+      "secciones": [
+        {
+          "id": "DFA-2.1",
+          "titulo": "Functional mapping and backend surface discovery",
+          "descripcion": "Structured identification of available functionalities and all remote services with which the application interacts.",
+          "subsecciones": [
+            {"id": "DFA-2.1.1", "titulo": "Functional flow reconstruction", "descripcion": "Understand the application's complete operation through exhaustive use of its features, including registration, authentication, password recovery, main functionalities, alternative flows, and edge cases, in order to identify points where security decisions are made or sensitive states are managed.", "triggers": ["android.permission.INTERNET"], "pasos": []},
+            {"id": "DFA-2.1.2", "titulo": "Inventory of endpoints and remote services", "descripcion": "Enumerate all endpoints consumed by the application during its execution, including REST APIs, GraphQL services, WebSockets, associated subdomains, and HTTP methods used, in order to build a complete inventory of the backend surface susceptible to authorization and manipulation testing.", "triggers": ["android.permission.INTERNET"], "pasos": []}
+          ]
+        },
+        {
+          "id": "DFA-2.2",
+          "titulo": "Communication and transit security analysis",
+          "descripcion": "Evaluation of the mechanisms used by the application to authenticate against the backend and protect the confidentiality and integrity of transmitted data.",
+          "subsecciones": [
+            {"id": "DFA-2.2.1", "titulo": "Management of session identifiers and authentication tokens", "descripcion": "Identify and analyze the authentication mechanisms used by the application, including JWTs, Session IDs, API Keys, device IDs, and custom headers, in order to understand how the session is established and maintained, what information the tokens contain, and if there are weaknesses in their structure, reuse, or exposure.", "triggers": ["android.permission.INTERNET"], "pasos": []},
+            {"id": "DFA-2.2.2", "titulo": "Evaluation of transport security", "descripcion": "Evaluate if communications between the application and the backend are performed exclusively over encrypted channels, verifying cleartext traffic configuration (android:usesCleartextTraffic and network_security_config.xml) and detecting the transmission of sensitive information in requests or responses that could be intercepted or manipulated.", "triggers": ["android.permission.INTERNET", "network_security_config"], "pasos": []}
+          ]
+        },
+        {
+          "id": "DFA-2.3",
+          "titulo": "Authentication and authorization tests",
+          "descripcion": "Systematic evaluation of the mechanisms that control user identity and their access to protected resources, with the goal of detecting improper access, privilege escalation, or failures in permission validation.",
+          "subsecciones": [
+            {"id": "DFA-2.3.1", "titulo": "Token lifecycle management", "descripcion": "Analyze the behavior of authentication tokens throughout their entire lifecycle, verifying expiration, improper reuse, invalidity after logout, and possible scenarios where an old or compromised token may still be accepted by the backend.", "triggers": ["android.permission.INTERNET"], "pasos": []},
+            {"id": "DFA-2.3.2", "titulo": "Resource access", "descripcion": "Determine if it is possible to access, modify, or delete resources belonging to other users through systematic manipulation of identifiers in authenticated requests (e.g., user_id, account_id, order_id, file_id), including multi-account tests and manipulation of role or privilege attributes.", "triggers": ["android.permission.INTERNET"], "pasos": []},
+            {"id": "DFA-2.3.3", "titulo": "Client-side vs. server-side control validation", "descripcion": "Identify which security controls are applied exclusively on the client and which are effectively validated by the server, verifying if direct manipulation of requests allows bypassing restrictions implemented only in the mobile application.", "triggers": ["android.permission.INTERNET"], "pasos": []},
+            {"id": "DFA-2.3.4", "titulo": "Mass assignment", "descripcion": "Evaluate if the backend processes additional parameters not exposed in the user interface, including the manipulation of flags such as isAdmin, balance, role, or other sensitive attributes, in order to detect possible privilege escalations or undue alterations of the internal state.", "triggers": ["android.permission.INTERNET"], "pasos": []},
+            {"id": "DFA-2.3.5", "titulo": "Rate limiting and brute force", "descripcion": "Determine if adequate rate limiting mechanisms and protection against abuse exist, evaluating scenarios such as account enumeration, brute force of OTPs, or abuse of password recovery tokens, identifying possible vectors for automation or mass exploitation.", "triggers": ["android.permission.INTERNET"], "pasos": []}
+          ]
+        },
+        {
+          "id": "DFA-2.4",
+          "titulo": "Business logic analysis",
+          "descripcion": "Evaluation of the coherence and robustness of the functional flows implemented in the backend, with the objective of identifying abuses derived from the manipulation of state, execution order, or the expected sequence of actions.",
+          "subsecciones": [
+            {"id": "DFA-2.4.1", "titulo": "Flow and application state manipulation", "descripcion": "Determine if it is possible to alter the logical sequence planned by the application, including bypassing mandatory steps, altering the execution order of operations, undue repetition of critical actions, or generating inconsistent states that allow unauthorized benefits to be obtained.", "triggers": ["android.permission.INTERNET"], "pasos": []},
+            {"id": "DFA-2.4.2", "titulo": "External execution and client dependency", "descripcion": "Verify if backend operations can be executed correctly from outside the application (e.g., using external tools) without additional context validations, evaluating if the server relies excessively on controls implemented only on the client.", "triggers": ["android.permission.INTERNET"], "pasos": []},
+            {"id": "DFA-2.4.3", "titulo": "Race conditions", "descripcion": "Evaluate if the concurrent execution of requests allows for the generation of inconsistent states or undue benefits, including duplication of payments, multiple application of coupons, undue increase in credits, or repeated modification of sensitive resources.", "triggers": ["android.permission.INTERNET"], "pasos": []}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CSE",
+      "nombre": "Module 3: Component exploitation (CSE)",
+      "descripcion": "Evaluation and exploitation of the inter-process communication (IPC) mechanisms defined by the application, with the objective of detecting unauthorized access to internal functionalities or undue alterations of expected behavior.",
+      "secciones": [
+        {
+          "id": "CSE-3.1",
+          "titulo": "IPC attacks",
+          "descripcion": "Exploitation of vectors previously identified in the Manifest analysis and the component exposure surface.",
+          "subsecciones": [
+            {"id": "CSE-3.1.1", "titulo": "Unauthorized invocation of exported components", "descripcion": "Determine if it is possible to invoke exported Activities, Services, or Content Providers by sending malicious Intents, forcing the execution of internal functionalities without adequate validation controls.", "triggers": ["android:exported=\"true\"", "<activity", "<service", "<provider"], "pasos": []},
+            {"id": "CSE-3.1.2", "titulo": "Intent redirection", "descripcion": "Identify if the application receives an external Intent and forwards it to another internal component without adequate validation, allowing the application itself to be used as an intermediary to reach non-exported components or execute privileged actions.", "triggers": ["android:exported=\"true\"", "intent-filter"], "pasos": []},
+            {"id": "CSE-3.1.3", "titulo": "Broadcast receiver abuse", "descripcion": "Evaluate if it is possible to send fake events to Broadcast Receivers registered by the application, causing state changes or execution of actions based on unverified events.", "triggers": ["<receiver", "android:exported=\"true\""], "pasos": []}
+          ]
+        },
+        {
+          "id": "CSE-3.2",
+          "titulo": "Content providers and data leakage",
+          "descripcion": "Evaluation of the mechanisms used by the application to manage and share structured information via Content Providers, with the goal of identifying improper access or unauthorized exposure of internal data.",
+          "subsecciones": [
+            {"id": "CSE-3.2.1", "titulo": "Injection into content providers", "descripcion": "Determine if the parameters used in content:// URIs allow the manipulation of internal queries, including possible SQL injections or filter alteration, which could grant access to unintended information or modify data without authorization.", "triggers": ["<provider", "content://"], "pasos": []},
+            {"id": "CSE-3.2.2", "titulo": "Path traversal in files", "descripcion": "Evaluate if the Content Provider configuration allows access to internal files through manipulation of paths or parameters, enabling the reading of sensitive files outside the scope intended by the application.", "triggers": ["<provider", "content://"], "pasos": []},
+            {"id": "CSE-3.2.3", "titulo": "Data leakage", "descripcion": "Verify if the Content Provider allows querying or extraction of data without requiring authentication or adequate permissions, facilitating the direct retrieval of sensitive information from external applications.", "triggers": ["<provider", "content://"], "pasos": []}
+          ]
+        },
+        {
+          "id": "CSE-3.3",
+          "titulo": "WebView exploitation",
+          "descripcion": "Evaluation of the risks associated with the use of WebViews in the application, with the objective of identifying vectors that allow unauthorized code execution, access to sensitive information, or alteration of expected behavior through attacker-controlled web content.",
+          "subsecciones": [
+            {"id": "CSE-3.3.1", "titulo": "Injection into JavaScript interfaces", "descripcion": "Identify methods exposed via the @JavaScriptInterface annotation and evaluate if they can be invoked from attacker-controlled web content, allowing the execution of native Java code or access to sensitive functionalities from an untrusted web context.", "triggers": ["WebView", "@JavascriptInterface"], "pasos": []},
+            {"id": "CSE-3.3.2", "titulo": "XSS injection", "descripcion": "Determine if the WebView, when JavaScript is enabled, processes dynamic content without adequate validation or sanitization, allowing the execution of malicious scripts that can manipulate the DOM, intercept information, or interact with exposed interfaces.", "triggers": ["WebView", "setJavaScriptEnabled"], "pasos": []},
+            {"id": "CSE-3.3.3", "titulo": "Local access via WebView", "descripcion": "Evaluate if configurations such as setAllowFileAccess(true) permit access to local files from injected web content, enabling the reading of internal resources or the exposure of sensitive information in case of prior vulnerabilities like XSS.", "triggers": ["WebView", "setAllowFileAccess"], "pasos": []}
+          ]
+        },
+        {
+          "id": "CSE-3.4",
+          "titulo": "Deep links",
+          "descripcion": "Evaluation of navigation mechanisms based on custom schemes and App Links, with the objective of identifying unauthorized access to internal functionalities or undue exposure of sensitive information through manipulated links.",
+          "subsecciones": [
+            {"id": "CSE-3.4.1", "titulo": "Parameter manipulation in deep links", "descripcion": "Determine if the application executes sensitive actions when processing parameters included in Deep Links without adequate validation, allowing state alteration, data modification, or execution of operations through specially constructed links.", "triggers": ["android:scheme", "<data", "android:host", "android:pathPrefix"], "pasos": []},
+            {"id": "CSE-3.4.2", "titulo": "Token theft via deep links", "descripcion": "Verify if the application transmits session tokens, authentication codes, or other sensitive parameters through custom URL schemes or App Links that can be intercepted by external applications registered for the same scheme.", "triggers": ["android:scheme", "<data", "android:host"], "pasos": []},
+            {"id": "CSE-3.4.3", "titulo": "OAuth manipulation", "descripcion": "Evaluate the robustness of OAuth flows implemented in the application, analyzing the manipulation of redirect_uri, the correct validation of the state parameter, and possible account takeover scenarios derived from insecure account linking processes.", "triggers": ["android:scheme", "OAuth", "redirect_uri"], "pasos": []}
+          ]
+        },
+        {
+          "id": "CSE-3.5",
+          "titulo": "Analysis of data at rest",
+          "descripcion": "Evaluation of the local storage used by the application, with the objective of identifying sensitive information stored without adequate protection or reusable in scenarios of physical access, root, or device compromise.",
+          "subsecciones": [
+            {"id": "CSE-3.5.1", "titulo": "Inspection of SharedPreferences", "descripcion": "Examine the content of SharedPreferences and other files located in the application's internal directory (e.g., /data/data/<package>/) to detect credentials, session tokens, persistent identifiers, or personal data stored without encryption or adequate protection.", "triggers": [], "pasos": [], "alwaysInScope": true},
+            {"id": "CSE-3.5.2", "titulo": "Analysis of SQLite databases", "descripcion": "Analyze the SQLite databases used by the application to identify sensitive information stored locally, evaluate the absence of encryption, and determine if persisted data can be reused for identity impersonation, state manipulation, or unauthorized access to functionalities.", "triggers": [], "pasos": [], "alwaysInScope": true}
+          ]
+        },
+        {
+          "id": "CSE-3.6",
+          "titulo": "Runtime manipulation",
+          "descripcion": "Evaluation of the protection mechanisms implemented on the client through dynamic instrumentation techniques, with the objective of identifying validations that can be altered or bypassed at runtime.",
+          "subsecciones": [
+            {"id": "CSE-3.6.1", "titulo": "Hooking of client-side validations", "descripcion": "Determine if validations implemented in the mobile application (e.g., role checks, functionality restrictions, biometric verifications, or flow controls) can be modified or nullified through hooking or dynamic instrumentation techniques, evidencing an excessive client-side dependency for the application of security controls.", "triggers": ["android:debuggable"], "pasos": [], "alwaysInScope": true}
+          ]
+        }
+      ]
+    }
+  ]
+}
